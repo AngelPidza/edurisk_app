@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -101,7 +100,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   );
 
   Widget _buildCard(AuthState state) => Container(
-    width: 420,
+    width: double.infinity,
+    constraints: const BoxConstraints(maxWidth: 420),
     padding: const EdgeInsets.all(36),
     decoration: BoxDecoration(
       color: Colors.white,
@@ -169,39 +169,46 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
         const SizedBox(height: 14),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: Checkbox(
-                    value: _remember,
-                    onChanged: (v) => setState(() => _remember = v!),
-                    activeColor: const Color(0xFF1E3A5F),
+        // Wrap en vez de Row: en pantallas angostas el enlace baja de línea
+        // en lugar de salirse de la tarjeta.
+        SizedBox(
+          width: double.infinity,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: Checkbox(
+                      value: _remember,
+                      onChanged: (v) => setState(() => _remember = v!),
+                      activeColor: const Color(0xFF1E3A5F),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Recordarme',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF374151)),
+                  ),
+                ],
+              ),
+              TextButton(
+                onPressed: () {},
+                child: const Text(
+                  '¿Olvidaste tu contraseña?',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF1E3A5F),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Recordarme',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF374151)),
-                ),
-              ],
-            ),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                '¿Olvidaste tu contraseña?',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF1E3A5F),
-                  fontWeight: FontWeight.w500,
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
 
@@ -251,27 +258,47 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Credenciales de prueba:',
+                'Credenciales de prueba',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1E40AF),
                 ),
               ),
+              const Text(
+                'Toca una para completar el correo y la contraseña.',
+                style: TextStyle(fontSize: 11.5, color: Color(0xFF3B5BA9)),
+              ),
               const SizedBox(height: 6),
               ..._testCreds.map(
-                (c) => GestureDetector(
-                  onTap: () {
-                    _emailCtrl.text = c.$2;
-                    _passCtrl.text = '12345678';
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      '${c.$1}: ${c.$2}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF2563EB),
+                (c) => MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      _emailCtrl.text = c.$2;
+                      _passCtrl.text = '12345678';
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.touch_app_outlined,
+                            size: 13,
+                            color: Color(0xFF2563EB),
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              '${c.$1}: ${c.$2}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF2563EB),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

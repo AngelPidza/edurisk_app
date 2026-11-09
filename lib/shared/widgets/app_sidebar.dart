@@ -6,33 +6,50 @@ class _NavItem {
   final String label;
   final String path;
   final IconData icon;
+
+  /// Qué se hace en esa pantalla; se muestra al pasar el puntero.
+  final String hint;
   final int? badge;
   const _NavItem({
     required this.label,
     required this.path,
     required this.icon,
+    required this.hint,
     this.badge,
   });
 }
 
 const _navItems = [
-  _NavItem(label: 'Dashboard', path: '/', icon: Icons.grid_view_rounded),
-  _NavItem(label: 'Cursos', path: '/cursos', icon: Icons.menu_book_rounded),
+  _NavItem(
+    label: 'Dashboard',
+    path: '/',
+    icon: Icons.grid_view_rounded,
+    hint: 'Resumen del riesgo en el colegio',
+  ),
+  _NavItem(
+    label: 'Cursos',
+    path: '/cursos',
+    icon: Icons.menu_book_rounded,
+    hint: 'Riesgo promedio de cada curso',
+  ),
   _NavItem(
     label: 'Alertas',
     path: '/alertas',
     icon: Icons.notifications_outlined,
+    hint: 'Estudiantes que necesitan seguimiento',
     badge: 3,
   ),
   _NavItem(
     label: 'Registro Académico',
     path: '/registro',
     icon: Icons.description_outlined,
+    hint: 'Cargar notas, asistencia y observaciones',
   ),
   _NavItem(
     label: 'Configuración',
     path: '/configuracion',
     icon: Icons.settings_outlined,
+    hint: 'Tu perfil y preferencias',
   ),
 ];
 
@@ -203,6 +220,15 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Tooltip(
+      message: item.hint,
+      waitDuration: const Duration(milliseconds: 500),
+      preferBelow: false,
+      child: _tile(context),
+    );
+  }
+
+  Widget _tile(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
@@ -212,14 +238,25 @@ class _SidebarItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           onTap: () => context.go(item.path),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(0, 8, 10, 8),
             child: Row(
               children: [
+                // Barra azul a la izquierda: marca la pantalla actual.
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 3,
+                  height: 16,
+                  margin: const EdgeInsets.only(right: 7),
+                  decoration: BoxDecoration(
+                    color: isActive ? AppTheme.accentBlue : Colors.transparent,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
                 Icon(
                   item.icon,
                   size: 16,
                   color: isActive
-                      ? AppTheme.textPrimary
+                      ? AppTheme.accentBlue
                       : AppTheme.textSecondary,
                 ),
                 const SizedBox(width: 10),
@@ -228,7 +265,7 @@ class _SidebarItem extends StatelessWidget {
                     item.label,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                       color: isActive
                           ? AppTheme.textPrimary
                           : AppTheme.textSecondary,

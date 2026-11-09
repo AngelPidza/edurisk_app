@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/guidance.dart';
 import '../providers/config_provider.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart'
     show AppTopBar;
@@ -25,26 +26,19 @@ class ConfigPage extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppTopBar(title: 'Configuración'),
+          // El título se repetía dos veces (barra y cuerpo); ahora la barra
+          // lleva el título y la frase que explica la pantalla.
+          const AppTopBar(
+            title: 'Configuración',
+            description:
+                'Administra las preferencias de tu cuenta y del sistema. Elige una sección a la izquierda.',
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Configuración',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const Text(
-                    'Administra las preferencias de tu cuenta y del sistema',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
-                  ),
-                  const SizedBox(height: 20),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -115,7 +109,14 @@ class ConfigPage extends ConsumerWidget {
                       Expanded(
                         child: activeTab == 'perfil'
                             ? const _ProfilePanel()
-                            : _PlaceholderPanel(tab: activeTab),
+                            : _PlaceholderPanel(
+                                label: _tabs
+                                    .firstWhere((t) => t.$1 == activeTab)
+                                    .$2,
+                                onBack: () =>
+                                    ref.read(configTabProvider.notifier).state =
+                                        'perfil',
+                              ),
                       ),
                     ],
                   ),
@@ -203,6 +204,7 @@ class _ProfilePanel extends ConsumerWidget {
                       label: 'Rol',
                       initial: form.role,
                       enabled: false,
+                      helper: 'Lo asigna la institución; no se cambia aquí.',
                     ),
                   ),
                   const SizedBox(width: 20),
@@ -268,11 +270,15 @@ class _FormField extends StatefulWidget {
   final String initial;
   final bool enabled;
   final ValueChanged<String>? onChanged;
+
+  /// Aclaración bajo el campo (por ejemplo, por qué no se puede editar).
+  final String? helper;
   const _FormField({
     required this.label,
     required this.initial,
     this.enabled = true,
     this.onChanged,
+    this.helper,
   });
   @override
   State<_FormField> createState() => _FormFieldState();
@@ -316,6 +322,15 @@ class _FormFieldState extends State<_FormField> {
         decoration: InputDecoration(
           filled: true,
           fillColor: AppTheme.bgInput,
+          helperText: widget.helper,
+          helperStyle: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+          suffixIcon: widget.enabled
+              ? null
+              : const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 15,
+                  color: AppTheme.textMuted,
+                ),
           contentPadding: const EdgeInsets.symmetric(
             vertical: 10,
             horizontal: 14,
@@ -343,33 +358,24 @@ class _FormFieldState extends State<_FormField> {
 }
 
 class _PlaceholderPanel extends StatelessWidget {
-  final String tab;
-  const _PlaceholderPanel({required this.tab});
+  final String label;
+  final VoidCallback onBack;
+  const _PlaceholderPanel({required this.label, required this.onBack});
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 300,
     decoration: BoxDecoration(
       color: AppTheme.bgCard,
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: AppTheme.borderSubtle),
     ),
-    child: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.construction_rounded,
-            size: 36,
-            color: AppTheme.textMuted,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Sección "$tab" en construcción',
-            style: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
-          ),
-        ],
-      ),
+    child: EmptyState(
+      icon: Icons.construction_rounded,
+      title: '«$label» todavía no está disponible',
+      message:
+          'Esta sección se habilitará más adelante. Mientras tanto, puedes revisar y editar tu perfil.',
+      actionLabel: 'Ir a Perfil',
+      onAction: onBack,
     ),
   );
 }
