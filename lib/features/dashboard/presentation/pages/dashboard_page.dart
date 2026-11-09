@@ -1,7 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/guidance.dart';
 import '../../domain/entities/activity_entity.dart';
 import '../../domain/entities/stat_entity.dart';
 import '../providers/dashboard_provider.dart';
@@ -20,12 +22,25 @@ class DashboardPage extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppTopBar(title: 'Dashboard'),
+          const AppTopBar(
+            title: 'Dashboard',
+            description:
+                'Resumen del colegio: cuántos estudiantes están en riesgo y qué pasó últimamente.',
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
+                  const HelpBanner(
+                    id: 'dashboard',
+                    steps: [
+                      'Mira las tarjetas de arriba: dicen cuántos estudiantes hay en cada nivel de riesgo. Deja el puntero (o mantén presionada) una tarjeta para ver qué significa.',
+                      'Revisa la tendencia para saber si el riesgo sube o baja con las semanas.',
+                      'Usa «Qué hacer ahora» para ir directo a las tareas pendientes.',
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   // Stats grid
                   stats.when(
                     loading: () => const SizedBox(
@@ -64,13 +79,21 @@ class DashboardPage extends ConsumerWidget {
                       const SizedBox(width: 14),
                       SizedBox(
                         width: 260,
-                        child: activity.when(
-                          loading: () => const SizedBox(
-                            height: 240,
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                          error: (e, _) => Text('Error: $e'),
-                          data: (data) => ActivityPanel(items: data),
+                        child: Column(
+                          children: [
+                            const NextStepsPanel(),
+                            const SizedBox(height: 14),
+                            activity.when(
+                              loading: () => const SizedBox(
+                                height: 240,
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                              error: (e, _) => Text('Error: $e'),
+                              data: (data) => ActivityPanel(items: data),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -89,7 +112,11 @@ class DashboardPage extends ConsumerWidget {
 
 class AppTopBar extends StatelessWidget {
   final String title;
-  const AppTopBar({super.key, required this.title});
+
+  /// Una frase que dice para qué sirve la pantalla, para que el usuario sepa
+  /// dónde está y qué puede hacer en ella.
+  final String? description;
+  const AppTopBar({super.key, required this.title, this.description});
 
   @override
   Widget build(BuildContext context) {
@@ -123,55 +150,80 @@ class AppTopBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              Text(
-                dateStr,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Stack(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppTheme.bgCard,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: AppTheme.borderSubtle),
-                ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  size: 18,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              Positioned(
-                top: 7,
-                right: 8,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentRed,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.bgBase, width: 1.5),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
+                if (description != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    description!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 2),
+                Text(
+                  dateStr,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          // La campana lleva a Alertas; antes era solo decorativa.
+          Tooltip(
+            message: 'Ver alertas',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(9),
+              onTap: () => context.go('/alertas'),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppTheme.bgCard,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: AppTheme.borderSubtle),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      size: 18,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  Positioned(
+                    top: 7,
+                    right: 8,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentRed,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.bgBase, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -197,8 +249,22 @@ class StatCard extends StatelessWidget {
     _ => Icons.people_outline_rounded,
   };
 
+  /// Qué significa cada tarjeta, en palabras simples.
+  String get _meaning => switch (stat.variant) {
+    'high' => 'Necesitan seguimiento cuanto antes. Revisa sus alertas.',
+    'medium' => 'Muestran señales de alerta. Conviene vigilarlos.',
+    'safe' => 'Su rendimiento está dentro de lo esperado.',
+    _ => 'Total de estudiantes que se están siguiendo.',
+  };
+
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Tooltip(
+    message: _meaning,
+    waitDuration: const Duration(milliseconds: 400),
+    child: _card(),
+  );
+
+  Widget _card() => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: AppTheme.bgCard,
@@ -322,9 +388,10 @@ class RiskChartCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 22,
+                      interval: 1,
                       getTitlesWidget: (v, _) {
                         final i = v.toInt();
-                        if (i >= 0 && i < trend.length)
+                        if (v == i.toDouble() && i >= 0 && i < trend.length)
                           return Text(
                             trend[i]['label'],
                             style: const TextStyle(
@@ -371,6 +438,60 @@ class RiskChartCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Accesos a las tareas más comunes, para que el usuario no tenga que adivinar
+/// en qué menú están.
+class NextStepsPanel extends StatelessWidget {
+  const NextStepsPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+    decoration: BoxDecoration(
+      color: AppTheme.bgCard,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppTheme.borderSubtle),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            'Qué hacer ahora',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        NextStepTile(
+          icon: Icons.notifications_active_outlined,
+          color: AppTheme.accentRed,
+          title: 'Atender alertas',
+          subtitle: 'Empieza por las pendientes',
+          onTap: () => context.go('/alertas'),
+        ),
+        NextStepTile(
+          icon: Icons.edit_note_rounded,
+          color: AppTheme.accentBlue,
+          title: 'Registrar calificaciones',
+          subtitle: 'Notas, asistencia y observaciones',
+          onTap: () => context.go('/registro'),
+        ),
+        NextStepTile(
+          icon: Icons.menu_book_rounded,
+          color: AppTheme.accentPurple,
+          title: 'Revisar cursos',
+          subtitle: 'Riesgo promedio de cada curso',
+          onTap: () => context.go('/cursos'),
+        ),
+      ],
+    ),
+  );
 }
 
 class ActivityPanel extends StatelessWidget {
