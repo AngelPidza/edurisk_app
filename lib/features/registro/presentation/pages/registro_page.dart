@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/guidance.dart';
 import '../../domain/entities/student_grade_entity.dart';
 import '../providers/registro_provider.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart'
@@ -30,29 +31,50 @@ class RegistroPage extends ConsumerWidget {
     final materia = ref.watch(selectedMateriaProvider);
     final course = ref.watch(selectedCourseRegistroProvider);
     final saved = ref.watch(gradeSavedProvider);
+    final dirty = ref.watch(gradesDirtyProvider);
 
-    // Load grades when course changes
+    // Carga las filas del curso elegido. Se compara con el curso ya cargado
+    // para que, al volver a un curso visto antes (o llegar desde Cursos con
+    // uno elegido), la tabla no quede con las filas de otro curso.
     if (course != null) {
-      ref.listen(gradesProvider(course), (_, next) {
-        next.whenData(
-          (grades) =>
-              ref.read(gradesNotifierProvider.notifier).setGrades(grades),
-        );
+      ref.watch(gradesProvider(course)).whenData((grades) {
+        final notifier = ref.read(gradesNotifierProvider.notifier);
+        if (notifier.loadedCourse != course) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => notifier.load(course, grades),
+          );
+        }
       });
     }
 
     final rows = ref.watch(gradesNotifierProvider);
+    final rowsReady =
+        course != null &&
+        ref.read(gradesNotifierProvider.notifier).loadedCourse == course;
 
     return Scaffold(
       backgroundColor: AppTheme.bgBase,
       body: Column(
         children: [
-          const AppTopBar(title: 'Registro Académico'),
+          const AppTopBar(
+            title: 'Registro Académico',
+            description:
+                'Carga las notas parciales, la asistencia y las observaciones de un curso.',
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
+                  const HelpBanner(
+                    id: 'registro',
+                    steps: [
+                      'Elige la materia y el curso. La tabla aparece cuando eliges los dos.',
+                      'Escribe las notas de cada parcial (de 0 a 10) y la asistencia (de 0 a 100 %). Si un valor está fuera de rango, la casilla se pone en rojo.',
+                      'Los cambios no se guardan solos: al terminar, presiona «Guardar Cambios».',
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   // Filter card
                   Container(
                     padding: const EdgeInsets.all(22),
@@ -72,6 +94,15 @@ class RegistroPage extends ConsumerWidget {
                             color: AppTheme.textPrimary,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        StepIndicator(
+                          steps: [
+                            GuideStep('Materia', done: materia != null),
+                            GuideStep('Curso', done: course != null),
+                            GuideStep('Calificaciones', done: dirty || saved),
+                            GuideStep('Guardar', done: saved),
+                          ],
+                        ),
                         const SizedBox(height: 18),
                         Row(
                           children: [
@@ -90,6 +121,8 @@ class RegistroPage extends ConsumerWidget {
                                           .state =
                                       v;
                                   ref.read(gradeSavedProvider.notifier).state =
+                                      false;
+                                  ref.read(gradesDirtyProvider.notifier).state =
                                       false;
                                 },
                               ),
@@ -112,6 +145,8 @@ class RegistroPage extends ConsumerWidget {
                                       v;
                                   ref.read(gradeSavedProvider.notifier).state =
                                       false;
+                                  ref.read(gradesDirtyProvider.notifier).state =
+                                      false;
                                 },
                               ),
                             ),
@@ -129,29 +164,20 @@ class RegistroPage extends ConsumerWidget {
                       border: Border.all(color: AppTheme.borderSubtle),
                     ),
                     child: (materia == null || course == null)
+                        ? EmptyState(
+                            icon: Icons.menu_book_outlined,
+                            title: materia == null && course == null
+                                ? 'Elige una materia y un curso'
+                                : materia == null
+                                ? 'Falta elegir la materia'
+                                : 'Falta elegir el curso',
+                            message:
+                                'Usa las listas de arriba. Cuando elijas las dos, aquí aparecerá la lista de estudiantes para cargar sus notas.',
+                          )
+                        : !rowsReady
                         ? const Padding(
-                            padding: EdgeInsets.all(52),
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.menu_book_outlined,
-                                    size: 48,
-                                    color: AppTheme.textMuted,
-                                  ),
-                                  SizedBox(height: 14),
-                                  Text(
-                                    'Selecciona una materia y un curso para comenzar',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppTheme.textMuted,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()),
                           )
                         : Column(
                             children: [
@@ -173,14 +199,23 @@ class RegistroPage extends ConsumerWidget {
                                       ),
                                     ),
                                     const Spacer(),
+                                    _SaveStatus(dirty: dirty, saved: saved),
+                                    const SizedBox(width: 12),
                                     ElevatedButton.icon(
-                                      onPressed: () =>
-                                          ref
-                                                  .read(
-                                                    gradeSavedProvider.notifier,
-                                                  )
-                                                  .state =
-                                              true,
+                                      onPressed: () {
+                                        ref
+                                                .read(
+                                                  gradeSavedProvider.notifier,
+                                                )
+                                                .state =
+                                            true;
+                                        ref
+                                                .read(
+                                                  gradesDirtyProvider.notifier,
+                                                )
+                                                .state =
+                                            false;
+                                      },
                                       icon: Icon(
                                         saved
                                             ? Icons.check_rounded
@@ -231,7 +266,7 @@ class RegistroPage extends ConsumerWidget {
                                     SizedBox(
                                       width: 100,
                                       child: Text(
-                                        'Parcial 1',
+                                        'Parcial 1 (0–10)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: AppTheme.textMuted,
@@ -241,7 +276,7 @@ class RegistroPage extends ConsumerWidget {
                                     SizedBox(
                                       width: 100,
                                       child: Text(
-                                        'Parcial 2',
+                                        'Parcial 2 (0–10)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: AppTheme.textMuted,
@@ -249,9 +284,9 @@ class RegistroPage extends ConsumerWidget {
                                       ),
                                     ),
                                     SizedBox(
-                                      width: 120,
+                                      width: 140,
                                       child: Text(
-                                        'Asistencia (%)',
+                                        'Asistencia (0–100 %)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: AppTheme.textMuted,
@@ -276,21 +311,48 @@ class RegistroPage extends ConsumerWidget {
                               ),
                               ...rows.asMap().entries.map(
                                 (e) => _GradeRow(
+                                  // La clave por estudiante evita que, al
+                                  // cambiar de curso, una fila conserve lo
+                                  // escrito para otro estudiante.
+                                  key: ValueKey('$course-${e.value.id}'),
                                   index: e.key,
                                   row: e.value,
-                                  onChanged: (i, updated) => ref
-                                      .read(gradesNotifierProvider.notifier)
-                                      .updateRow(i, updated),
+                                  onChanged: (i, updated) {
+                                    ref
+                                        .read(gradesNotifierProvider.notifier)
+                                        .updateRow(i, updated);
+                                    ref
+                                            .read(gradesDirtyProvider.notifier)
+                                            .state =
+                                        true;
+                                    ref
+                                            .read(gradeSavedProvider.notifier)
+                                            .state =
+                                        false;
+                                  },
                                 ),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(16),
-                                child: Text(
-                                  'Total de estudiantes: ${rows.length}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textMuted,
-                                  ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Total de estudiantes: ${rows.length}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textMuted,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (dirty)
+                                      const Text(
+                                        'Recuerda presionar «Guardar Cambios» antes de salir.',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.accentYellow,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -370,11 +432,52 @@ class _SelectField extends StatelessWidget {
   );
 }
 
+/// Dice, junto al botón de guardar, si hay cambios pendientes o si ya se
+/// guardó, para que el usuario no salga creyendo que sus notas quedaron.
+class _SaveStatus extends StatelessWidget {
+  final bool dirty;
+  final bool saved;
+  const _SaveStatus({required this.dirty, required this.saved});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!dirty && !saved) return const SizedBox.shrink();
+    final color = dirty ? AppTheme.accentYellow : AppTheme.accentGreen;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            dirty ? Icons.edit_outlined : Icons.cloud_done_outlined,
+            size: 13,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            dirty ? 'Cambios sin guardar' : 'Todo guardado',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _GradeRow extends StatefulWidget {
   final int index;
   final StudentGradeEntity row;
   final void Function(int, StudentGradeEntity) onChanged;
   const _GradeRow({
+    super.key,
     required this.index,
     required this.row,
     required this.onChanged,
@@ -414,36 +517,57 @@ class _GradeRowState extends State<_GradeRow> {
     ),
   );
 
-  Widget _numInput(TextEditingController ctrl) => Padding(
-    padding: const EdgeInsets.only(right: 10),
-    child: SizedBox(
-      height: 36,
-      child: TextField(
-        controller: ctrl,
-        onChanged: (_) => _notify(),
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: AppTheme.bgInput,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.border),
+  /// Un valor escrito que no es número o queda fuera de [0, max].
+  bool _outOfRange(String text, double max) {
+    final t = text.trim().replaceAll(',', '.');
+    if (t.isEmpty) return false;
+    final v = double.tryParse(t);
+    return v == null || v < 0 || v > max;
+  }
+
+  Widget _numInput(TextEditingController ctrl, {required double max}) {
+    final invalid = _outOfRange(ctrl.text, max);
+    final edgeColor = invalid ? AppTheme.accentRed : AppTheme.border;
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: SizedBox(
+        height: 36,
+        child: TextField(
+          controller: ctrl,
+          onChanged: (_) => setState(_notify),
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: invalid ? AppTheme.accentRed : AppTheme.textPrimary,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppTheme.accentBlue),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: invalid
+                ? AppTheme.accentRed.withOpacity(0.08)
+                : AppTheme.bgInput,
+            hintText: '—',
+            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: edgeColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: edgeColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: invalid ? AppTheme.accentRed : AppTheme.accentBlue,
+              ),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -466,16 +590,27 @@ class _GradeRowState extends State<_GradeRow> {
                   color: AppTheme.textPrimary,
                 ),
               ),
-              Text(
-                widget.row.course,
-                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
-              ),
+              if (_outOfRange(_p1.text, 10) ||
+                  _outOfRange(_p2.text, 10) ||
+                  _outOfRange(_as.text, 100))
+                const Text(
+                  'Revisa los valores en rojo',
+                  style: TextStyle(fontSize: 11, color: AppTheme.accentRed),
+                )
+              else
+                Text(
+                  widget.row.course,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
             ],
           ),
         ),
-        SizedBox(width: 100, child: _numInput(_p1)),
-        SizedBox(width: 100, child: _numInput(_p2)),
-        SizedBox(width: 120, child: _numInput(_as)),
+        SizedBox(width: 100, child: _numInput(_p1, max: 10)),
+        SizedBox(width: 100, child: _numInput(_p2, max: 10)),
+        SizedBox(width: 140, child: _numInput(_as, max: 100)),
         Expanded(
           child: SizedBox(
             height: 36,

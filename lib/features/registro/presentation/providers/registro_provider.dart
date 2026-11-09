@@ -26,7 +26,15 @@ final gradesProvider = FutureProvider.family<List<StudentGradeEntity>, String>((
 class GradesNotifier extends StateNotifier<List<StudentGradeEntity>> {
   GradesNotifier() : super([]);
 
+  /// Curso cuyas filas están cargadas, para no mezclar las de otro curso.
+  String? loadedCourse;
+
   void setGrades(List<StudentGradeEntity> grades) => state = List.from(grades);
+
+  void load(String course, List<StudentGradeEntity> grades) {
+    loadedCourse = course;
+    state = List.from(grades);
+  }
 
   void updateRow(int index, StudentGradeEntity updated) {
     final copy = List<StudentGradeEntity>.from(state);
@@ -41,3 +49,6 @@ final gradesNotifierProvider =
     );
 
 final gradeSavedProvider = StateProvider<bool>((_) => false);
+
+/// Hay cambios escritos en la tabla que todavía no se guardaron.
+final gradesDirtyProvider = StateProvider<bool>((_) => false);
